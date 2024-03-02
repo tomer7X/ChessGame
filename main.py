@@ -18,10 +18,12 @@ class ChessGame:
         # Initialize the chess board
         self.board = self.initialize_board()
 
+        # Variables to track selected piece and target square
+        self.selected_piece = None
+        self.legal_moves = []  # List to store legal moves for the selected piece
+
         # Run the Pygame loop
         self.run()
-
-    # ... (rest of the class remains unchanged)
 
 
     def initialize_board(self):
@@ -38,6 +40,20 @@ class ChessGame:
         ]
         return board
 
+    def has_piece(self, row, col):
+        return self.board[row][col] != '  '
+
+    def has_black_piece(self, row, col):
+        return self.board[row][col][0] == 'B'  # Check if the first character of the piece code is 'B'
+
+    def has_white_piece(self, row, col):
+        return self.board[row][col][0] == 'W'  # Check if the first character of the piece code is 'W'
+
+    def print_board(self):
+        for row in self.board:
+            print(" ".join(row))
+        print()
+
     def load_images(self):
         images = {}
         for piece in ['WP', 'BP', 'WR', 'BR', 'WN', 'BN', 'WB', 'BB', 'WQ', 'BQ', 'WK', 'BK']:
@@ -45,6 +61,121 @@ class ChessGame:
             image = pygame.image.load(image_path).convert_alpha()
             images[piece] = pygame.transform.scale(image, (self.screen_size[0] // 8, self.screen_size[1] // 8))
         return images
+
+
+    def generate_legal_moves(self, x, y, piece):
+        if piece == 'WP':
+            if not self.has_piece(x - 1, y):
+                self.legal_moves.append((x - 1, y))
+                if x == 6 and not self.has_piece(x - 2, y):
+                    self.legal_moves.append((x - 2, y))
+            if self.has_black_piece(x - 1, y - 1):
+                self.legal_moves.append((x - 1, y - 1))
+            if self.has_black_piece(x - 1, y + 1):
+                self.legal_moves.append((x - 1, y + 1))
+
+        elif piece == 'BP':
+            if not self.has_piece(x + 1, y):
+                self.legal_moves.append((x + 1, y))
+                if x == 1 and not self.has_piece(x + 2, y):
+                    self.legal_moves.append((x + 2, y))
+            if self.has_white_piece(x + 1, y - 1):
+                self.legal_moves.append((x + 1, y - 1))
+            if self.has_white_piece(x + 1, y + 1):
+                self.legal_moves.append((x + 1, y + 1))
+        elif piece[1] != 'P':
+            for i in range(8):
+                for j in range(8):
+                    # For now, every move is considered legal if it's within the board boundaries
+                    self.legal_moves.append((i, j))
+
+
+
+    def handle_mouse_click(self, pos):
+        square_size = self.screen_size[0] // 8
+        col = pos[0] // square_size
+        row = pos[1] // square_size
+
+        if self.selected_piece is None:
+            # No piece selected, check if the clicked square has a piece
+            piece = self.board[row][col]
+            if piece != '  ':
+                if self.selected_piece == (row, col):
+                    # Clicking on the same piece again cancels the selection
+                    self.selected_piece = None
+                    self.legal_moves = []
+                else:
+                    self.selected_piece = (row, col)
+                    self.calculate_legal_moves(piece)
+        else:
+            # Move the selected piece to the clicked square if it's a legal move
+            if (row, col) in self.legal_moves:
+                self.target_square = (row, col)
+                self.move_piece()
+            else:
+                # Clicking on the same piece again cancels the selection
+                piece = self.board[row][col]
+                if piece != '  ':
+                    self.selected_piece = None
+                    self.legal_moves = []
+
+    def calculate_legal_moves(self, piece):
+        # Calculate legal moves for the selected piece
+        self.legal_moves = []
+        if self.selected_piece:
+            self.generate_legal_moves(self.selected_piece[0], self.selected_piece[1], piece)
+
+    def move_piece(self):
+        if self.selected_piece and self.target_square:
+            # Implement move validation logic here if needed
+            piece_to_move = self.board[self.selected_piece[0]][self.selected_piece[1]]
+            self.board[self.target_square[0]][self.target_square[1]] = piece_to_move
+            self.board[self.selected_piece[0]][self.selected_piece[1]] = '  '
+
+            # Check for pawn promotion for white pawn
+            if (piece_to_move == 'WP' and self.target_square[0] == 0) or (piece_to_move == 'BP' and self.target_square[0] == 7):
+                self.promote_pawn(piece_to_move[0])
+
+            # Reset selected_piece and target_square
+            self.selected_piece = None
+            self.target_square = None
+
+    def promote_pawn(self,piece_color):
+
+        promotion_options = [piece_color+'Q', piece_color+'R', piece_color+'N', piece_color+'B']
+
+        # Display promotion options
+        promotion_images = [self.load_images()[option] for option in promotion_options]
+        self.display_promotion_options(promotion_images,piece_color)
+
+    def display_promotion_options(self, images,piece_color):
+        square_size = self.screen_size[0] // 8
+
+        while True:
+            for i, image in enumerate(images):
+                option_surface = pygame.Surface((square_size, square_size))
+                option_surface.fill((255, 255, 255))
+                option_surface.blit(image, (0, 0))
+                self.screen.blit(option_surface, ((i + 2) * square_size, 4 * square_size))
+                pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x, y = event.pos
+                    chosen_option = (x // square_size) - 2
+                    chosen_high = (y // square_size) - 2
+                    piece_kind = ''
+                    if 0 <= chosen_option < 4 and chosen_high == 2:
+                        if chosen_option == 0:
+                            piece_kind = 'Q'
+                        if chosen_option == 1:
+                            piece_kind = 'R'
+                        if chosen_option == 2:
+                            piece_kind = 'N'
+                        if chosen_option == 3:
+                            piece_kind = 'B'
+                        self.board[self.target_square[0]][self.target_square[1]] = piece_color + piece_kind
+                        return
 
     def display_board(self):
         # Display the chess board with graphics
@@ -57,6 +188,10 @@ class ChessGame:
 
                 # Use dark gray for black squares
                 square_surface.fill((102, 51, 0) if (i + j) % 2 == 0 else (255, 255, 255))
+
+                # Highlight legal moves if a piece is selected
+                if self.selected_piece and (i, j) in self.legal_moves:
+                    pygame.draw.circle(square_surface, (169, 169, 169), (square_size // 2, square_size // 2), square_size // 6)
 
                 self.screen.blit(square_surface, (j * square_size, i * square_size))
 
@@ -71,6 +206,9 @@ class ChessGame:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button
+                        self.handle_mouse_click(pygame.mouse.get_pos())
 
             self.display_board()
 
