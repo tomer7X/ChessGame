@@ -94,7 +94,6 @@ class ChessGame:
 
     def generate_legal_moves(self, x, y, piece):
         if piece == 'WP': #white pawn
-
             if not self.has_piece(x - 1, y):
                 self.legal_moves.append((x - 1, y))
                 if x == 6 and not self.has_piece(x - 2, y):
@@ -162,13 +161,14 @@ class ChessGame:
                     else:
                         break
                     i, j = move_x + i, move_y + j
-
-
-        else:
-            for i in range(8):
-                for j in range(8):
-                    # For now, every move is considered legal if it's within the board boundaries
-                    self.legal_moves.append((i, j))
+        elif piece[1] == 'K': #king
+            directions = [(1, 0), (0, 1), (1, 1), (1, -1), (-1, 1), (-1, -1), (-1, 0), (0, -1)]
+            for dir in directions:
+                move_x, move_y = dir
+                i, j = move_x + x, move_y + y
+                if 0 <= i <= 7 and 0 <= j <= 7:
+                    if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
+                        self.legal_moves.append((i, j))
 
 
 
