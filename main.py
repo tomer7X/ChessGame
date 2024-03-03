@@ -84,7 +84,7 @@ class ChessGame:
 
     def load_images(self):
         images = {}
-        for piece in ['WP', 'BP', 'WR', 'BR', 'WN', 'BN', 'WB', 'BB', 'WQ', 'BQ', 'WK', 'BK']:
+        for piece in ['WP', 'BP', 'WR', 'BR', 'WN', 'BN', 'WB', 'BB', 'WQ', 'BQ', 'WK', 'BK','WS','BS']:
             image_path = os.path.join('images', f'{piece}.png')
             image = pygame.image.load(image_path).convert_alpha()
             images[piece] = pygame.transform.scale(image, (self.screen_size[0] // 8, self.screen_size[1] // 8))
@@ -169,7 +169,10 @@ class ChessGame:
                 if 0 <= i <= 7 and 0 <= j <= 7:
                     if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
                         self.legal_moves.append((i, j))
-
+        else: #spiderman!
+            for i in range(0,8):
+                for j in range(0,8):
+                    self.legal_moves.append((i, j))
 
 
     def handle_mouse_click(self, pos):
@@ -233,7 +236,7 @@ class ChessGame:
 
     def promote_pawn(self,piece_color):
 
-        promotion_options = [piece_color+'Q', piece_color+'R', piece_color+'N', piece_color+'B']
+        promotion_options = [piece_color+'Q', piece_color+'R', piece_color+'N', piece_color+'B',piece_color+'S']
 
         # Display promotion options
         promotion_images = [self.load_images()[option] for option in promotion_options]
@@ -256,7 +259,7 @@ class ChessGame:
                     chosen_option = (x // square_size) - 2
                     chosen_high = (y // square_size) - 2
                     piece_kind = ''
-                    if 0 <= chosen_option < 4 and chosen_high == 2:
+                    if 0 <= chosen_option < 5 and chosen_high == 2:
                         if chosen_option == 0:
                             piece_kind = 'Q'
                         if chosen_option == 1:
@@ -265,6 +268,8 @@ class ChessGame:
                             piece_kind = 'N'
                         if chosen_option == 3:
                             piece_kind = 'B'
+                        if chosen_option == 4:
+                            piece_kind = 'S'
                         self.board[self.target_square[0]][self.target_square[1]] = piece_color + piece_kind
                         return
 
