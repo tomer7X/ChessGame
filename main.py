@@ -26,7 +26,7 @@ class ChessGame:
         # Run the Pygame loop
         self.color_to_move = 'W'
         self.is_checkmate = False
-        self.is_stealmate = False
+        self.is_stalemate = False
         self.avaiable_enpassant = [False, -1, -1]
         self.last_move = {'piece': '  ', 'source': (-1, -1), 'dest': (-1, -1)}
         self.run()
@@ -47,7 +47,7 @@ class ChessGame:
         return board
 
 
-    def checkmate(self):
+    def mate(self):
         # Freeze the game window
         pygame.time.wait(1000)  # Wait for 1 second (adjust as needed)
 
@@ -55,8 +55,8 @@ class ChessGame:
         pygame.font.init()
         font = pygame.font.SysFont('Arial', 50)
         win_color = 'White' if self.last_move['piece'][0] == 'W' else 'Black'
-        if self.is_stealmate:
-            text_surface = font.render(f'Stealmate!', True, (255, 0, 0))  # Red color
+        if self.is_stalemate:
+            text_surface = font.render(f'Stalemate!', True, (255, 0, 0))  # Red color
         else:
             text_surface = font.render(f'Checkmate! {win_color} wins!', True, (255, 0, 0))  # Red color
         text_rect = text_surface.get_rect(center=(self.screen_size[0] // 2, self.screen_size[1] // 2))
@@ -328,22 +328,20 @@ class ChessGame:
                 if self.last_move['piece'][1] == 'P' and self.avaiable_enpassant[0] and (self.last_move['dest'] == (self.avaiable_enpassant[1]+1,self.avaiable_enpassant[2]) or self.last_move['dest'] == (self.avaiable_enpassant[1]-1,self.avaiable_enpassant[2])):
                     self.board[self.avaiable_enpassant[1]][self.avaiable_enpassant[2]] = '  '
 
-                #after each move, we will see if there is check,checkmate,stealmate:
+                #after each move, we will see if there is check,checkmate,stalemate:
                 #serach for all legal moves, if no legal moves,
-                # self.all_legal_moves = []
+                self.all_legal_moves = []
                 color_can_be_checked = 'W' if self.last_move['piece'][0] == 'B' else 'B'
-                if self.is_check(self.board, color_can_be_checked):
-                    print(f"other color check {color_can_be_checked}")
-                # for i in range(0,8):
-                #     for j in range(0,8):
-                #         if color_can_be_checked == self.board[i][j][0]:
-                #             self.generate_legal_moves(i, j, self.board[i][j], True)
-                # print(len(self.all_legal_moves))
-                # if len(self.all_legal_moves) == 0:
-                #     if self.is_check(self.board, color_can_be_checked):
-                #         self.is_checkmate = True
-                #     else:
-                #         self.is_stealmate = True
+                for i in range(0, 8):
+                    for j in range(0, 8):
+                        if color_can_be_checked == self.board[i][j][0]:
+                            self.generate_legal_moves(i, j, self.board[i][j], True)
+                print(len(self.all_legal_moves))
+                if len(self.all_legal_moves) == 0:
+                    if self.is_check(self.board, color_can_be_checked):
+                        self.is_checkmate = True
+                    else:
+                        self.is_stalemate = True
 
             else:
                 # Clicking on the same piece again cancels the selection
@@ -460,8 +458,8 @@ class ChessGame:
 
             self.display_board()
 
-            # if self.is_checkmate:
-            #     self.checkmate()
+            if self.is_checkmate or self.is_stalemate:
+                 self.mate()
 
             pygame.display.flip()
             self.clock.tick(60)
