@@ -1,6 +1,7 @@
 import pygame
 import sys
 import os
+import copy
 
 class ChessGame:
     def __init__(self):
@@ -21,8 +22,11 @@ class ChessGame:
         # Variables to track selected piece and target square
         self.selected_piece = None
         self.legal_moves = []  # List to store legal moves for the selected piece
+        self.all_legal_moves = []
         # Run the Pygame loop
         self.color_to_move = 'W'
+        self.is_checkmate = False
+        self.is_stealmate = False
         self.avaiable_enpassant = [False, -1, -1]
         self.last_move = {'piece': '  ', 'source': (-1, -1), 'dest': (-1, -1)}
         self.run()
@@ -41,6 +45,35 @@ class ChessGame:
             ['WR', 'WN', 'WB', 'WQ', 'WK', 'WB', 'WN', 'WR']
         ]
         return board
+
+
+    def checkmate(self):
+        # Freeze the game window
+        pygame.time.wait(1000)  # Wait for 1 second (adjust as needed)
+
+        # Display a pop-up message
+        pygame.font.init()
+        font = pygame.font.SysFont('Arial', 50)
+        win_color = 'White' if self.last_move['piece'][0] == 'W' else 'Black'
+        if self.is_stealmate:
+            text_surface = font.render(f'Stealmate!', True, (255, 0, 0))  # Red color
+        else:
+            text_surface = font.render(f'Checkmate! {win_color} wins!', True, (255, 0, 0))  # Red color
+        text_rect = text_surface.get_rect(center=(self.screen_size[0] // 2, self.screen_size[1] // 2))
+        self.screen.blit(text_surface, text_rect)
+        pygame.display.flip()
+
+        # Wait for a few seconds before quitting
+        pygame.time.wait(3000)  # Wait for 3 seconds (adjust as needed)
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button
+                        pygame.quit()
+                        sys.exit()
 
 
     def has_piece(self, row, col):
@@ -66,19 +99,6 @@ class ChessGame:
             return self.board[row][col][0] == 'W'
         return False
 
-    def en_passant(self, piece, x ,y):
-        if piece[0] == 'W':
-            data = ['BP',1,3]
-        if piece[0] == 'B':
-            data = ['WP',6,4]
-        if x != data[2]:
-            return False
-        if self.last_move == {'piece': data[0], 'source': (data[1], y), 'dest': (data[2], y)}:
-            self.avaiable_enpassant = [True, data[2], y]
-            print(f'need to delete {self.last_move['dest']}')
-            return True
-        self.avaiable_enpassant[0] = False
-        return False
     def print_board(self):
         for row in self.board:
             print(" ".join(row))
@@ -92,97 +112,197 @@ class ChessGame:
             images[piece] = pygame.transform.scale(image, (self.screen_size[0] // 8, self.screen_size[1] // 8))
         return images
 
+    def still_in_check(self, source, dest, piece):
+        board = copy.deepcopy(self.board)
+        board[source[0]][source[1]] = '  '
+        board[dest[0]][dest[1]] = piece
+        if self.is_check(board, piece[0]):
+            return True
+        return False
+
+    def is_check(self, board, color):
+        # Find the king's position
+        king_position = None
+        for i in range(8):
+            for j in range(8):
+                if board[i][j] == color + 'K':
+                    king_position = (i, j)
+                    break
+
+        if king_position is None:
+            raise ValueError(f"No {color} king found on the board.")
+
+        # Check for threats from opponent pieces
+        opponent_color = 'W' if color == 'B' else 'B'
+
+        # Check for threats from pawns
+        pawn_direction = 1 if color == 'W' else -1
+        pawn_moves = [(pawn_direction, -1), (pawn_direction, 1)]
+        for move in pawn_moves:
+            move_x, move_y = move
+            x, y = king_position[0] + move_x, king_position[1] + move_y
+            if 0 <= x < 8 and 0 <= y < 8 and board[x][y] == opponent_color + 'P':
+                return True
+
+        # Check for threats from knights
+        knight_moves = [
+            (-2, -1), (-2, 1),
+            (-1, -2), (-1, 2),
+            (1, -2), (1, 2),
+            (2, -1), (2, 1)
+        ]
+        for move in knight_moves:
+            move_x, move_y = move
+            x, y = king_position[0] + move_x, king_position[1] + move_y
+            if 0 <= x < 8 and 0 <= y < 8 and board[x][y] == opponent_color + 'N':
+                return True
+
+        # Check for threats from bishops, rooks, and queens
+        directions = [
+            (0, -1), (0, 1), (1, 0), (-1, 0),
+            (1, 1), (1, -1), (-1, 1), (-1, -1)
+        ]
+        for dir in directions:
+            move_x, move_y = dir
+            i, j = king_position[0] + move_x, king_position[1] + move_y
+            while 0 <= i < 8 and 0 <= j < 8:
+                if board[i][j][0] == opponent_color:
+                    if board[i][j][1] in ['B', 'R', 'Q']:
+                        return True
+                    else:
+                        break
+                elif board[i][j] != '  ':
+                    break
+                i, j = i + move_x, j + move_y
+
+        return False
 
 
-    def generate_legal_moves(self, x, y, piece):
-        print(self.last_move)
-        if piece[1] == 'P': #pawn
-            direction = -1 if piece[0] == 'W' else 1
-            move_x = x + direction
-            if 0 <= move_x < 8 and self.board[move_x][y] == '  ':
-                self.legal_moves.append((move_x, y))
-                if ((piece[0] == 'W' and x == 6) or (piece[0] == 'B' and x == 1)) and self.board[move_x + direction][y] == '  ':
-                    self.legal_moves.append((move_x + direction, y))
-            for move_y in [-1,1]:
-                new_col = y + move_y
-                if 0 <= move_x < 8 and 0 <= new_col < 8:
-                    target_piece = self.board[move_x][new_col]
-                    if target_piece != '  ' and target_piece[0] != piece[0]:
-                        self.legal_moves.append((move_x, new_col))
-            self.avaiable_enpassant = [False, -1, -1]
-            #en_passant:
-            if self.last_move['piece'][0] != piece[0] and self.last_move['piece'][1] == 'P':
-                if abs(self.last_move['source'][0] - self.last_move['dest'][0]) == 2:
-                    if self.last_move['dest'][0] == x and abs(self.last_move['dest'][1] - y) == 1:
-                        self.avaiable_enpassant = [True, self.last_move['dest'][0], self.last_move['dest'][1]]
-                        if piece[0] == 'W':
-                            self.legal_moves.append((self.last_move['dest'][0] - 1, self.last_move['dest'][1]))
+    def is_pinned(self, piece, x , y):
+        return False
+
+    def generate_legal_moves(self, x, y, piece, flag=False):
+        self.legal_moves = []
+        check = False
+        if not self.is_pinned(piece, x, y):
+            if self.is_check(self.board, piece[0]):
+                check = True
+            # -------------------------pawn
+            if piece[1] == 'P':
+                direction = -1 if piece[0] == 'W' else 1
+                move_x = x + direction
+                if 0 <= move_x < 8 and self.board[move_x][y] == '  ':
+                    if not self.still_in_check((x,y),(move_x,y),piece):
+                        self.legal_moves.append((move_x, y))
+                    if ((piece[0] == 'W' and x == 6) or (piece[0] == 'B' and x == 1)) and self.board[move_x + direction][y] == '  ':
+                        if not self.still_in_check((x, y), (move_x + direction, y), piece):
+                            self.legal_moves.append((move_x + direction, y))
+
+                for move_y in [-1, 1]:
+                    new_col = y + move_y
+                    if 0 <= move_x < 8 and 0 <= new_col < 8:
+                        target_piece = self.board[move_x][new_col]
+                        if target_piece != '  ' and target_piece[0] != piece[0]:
+                            if not self.still_in_check((x, y), (move_x, new_col), piece):
+                                self.legal_moves.append((move_x, new_col))
+                self.avaiable_enpassant = [False, -1, -1]
+                # -------------------------en_passant:
+                if self.last_move['piece'][0] != piece[0] and self.last_move['piece'][1] == 'P':
+                    if abs(self.last_move['source'][0] - self.last_move['dest'][0]) == 2:
+                        if self.last_move['dest'][0] == x and abs(self.last_move['dest'][1] - y) == 1:
+                            self.avaiable_enpassant = [True, self.last_move['dest'][0], self.last_move['dest'][1]]
+                            if piece[0] == 'W':
+                                if not self.still_in_check((x, y), (self.last_move['dest'][0] - 1, self.last_move['dest'][1]), piece):
+                                    self.legal_moves.append((self.last_move['dest'][0] - 1, self.last_move['dest'][1]))
+                            else:
+                                if not self.still_in_check((x, y),(self.last_move['dest'][0] + 1, self.last_move['dest'][1]), piece):
+                                    self.legal_moves.append((self.last_move['dest'][0] + 1, self.last_move['dest'][1]))
+
+            # -------------------------bishop
+
+            elif piece[1] == 'B':
+                directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+                for dir in directions:
+                    move_x, move_y = dir
+                    i, j = move_x + x, move_y + y
+                    while 0 <= i <= 7 and 0 <= j <= 7:
+                        if self.board[i][j] == '  ' or piece[0] != self.board[i][j][0]:
+                            if not self.still_in_check((x, y), (i, j), piece):
+                                self.legal_moves.append((i, j))
+                            if self.board[i][j] != '  ':
+                                break
                         else:
-                            self.legal_moves.append((self.last_move['dest'][0] + 1, self.last_move['dest'][1]))
-
-
-
-
-        elif piece[1] == 'B': #bishop
-            directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
-            for dir in directions:
-                move_x, move_y = dir
-                i, j = move_x + x, move_y + y
-                while 0 <= i <= 7 and 0 <= j <= 7:
-                    if self.board[i][j] == '  '  or piece[0] != self.board[i][j][0]:
-                        self.legal_moves.append((i,j))
-                        if self.board[i][j] != '  ':
                             break
-                    else:
-                        break
-                    i, j = move_x + i, move_y + j
-        elif piece[1] == 'R': #rock
-            directions = [(0, -1), (0, 1), (1, 0), (-1, 0)]
-            for dir in directions:
-                move_x, move_y = dir
-                i, j = move_x + x, move_y + y
-                while 0 <= i <= 7 and 0 <= j <= 7:
-                    if self.board[i][j] == '  ' or piece[0] != self.board[i][j][0]:
-                        self.legal_moves.append((i, j))
-                        if self.board[i][j] != '  ':
-                            break
-                    else:
-                        break
-                    i, j = move_x + i, move_y + j
-        elif piece[1] == 'N': #night
-            directions = [(2, -1), (2, 1), (1, 2), (1, -2), (-2, -1), (-2, 1), (-1, 2), (-1, -2)]
-            for dir in directions:
-                move_x, move_y = dir
-                i, j = move_x + x, move_y + y
-                if 0 <= i <= 7 and 0 <= j <= 7:
-                    if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
-                        self.legal_moves.append((i,j))
-        elif piece[1] == 'Q': #Queen
-            directions = [(0, -1), (0, 1), (1, 0), (-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]
-            for dir in directions:
-                move_x, move_y = dir
-                i, j = move_x + x, move_y + y
-                while 0 <= i <= 7 and 0 <= j <= 7:
-                    if self.board[i][j] == '  ' or piece[0] != self.board[i][j][0]:
-                        self.legal_moves.append((i, j))
-                        if self.board[i][j] != '  ':
-                            break
-                    else:
-                        break
-                    i, j = move_x + i, move_y + j
-        elif piece[1] == 'K': #king
-            directions = [(1, 0), (0, 1), (1, 1), (1, -1), (-1, 1), (-1, -1), (-1, 0), (0, -1)]
-            for dir in directions:
-                move_x, move_y = dir
-                i, j = move_x + x, move_y + y
-                if 0 <= i <= 7 and 0 <= j <= 7:
-                    if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
-                        self.legal_moves.append((i, j))
-        else: #spiderman!
-            for i in range(0,8):
-                for j in range(0,8):
-                    self.legal_moves.append((i, j))
+                        i, j = move_x + i, move_y + j
 
+            # -------------------------rock
+
+            elif piece[1] == 'R':  # rock
+                directions = [(0, -1), (0, 1), (1, 0), (-1, 0)]
+                for dir in directions:
+                    move_x, move_y = dir
+                    i, j = move_x + x, move_y + y
+                    while 0 <= i <= 7 and 0 <= j <= 7:
+                        if self.board[i][j] == '  ' or piece[0] != self.board[i][j][0]:
+                            if not self.still_in_check((x, y), (i, j), piece):
+                                self.legal_moves.append((i, j))
+                            if self.board[i][j] != '  ':
+                                break
+                        else:
+                            break
+                        i, j = move_x + i, move_y + j
+
+            # -------------------------night
+
+            elif piece[1] == 'N':  # night
+                directions = [(2, -1), (2, 1), (1, 2), (1, -2), (-2, -1), (-2, 1), (-1, 2), (-1, -2)]
+                for dir in directions:
+                    move_x, move_y = dir
+                    i, j = move_x + x, move_y + y
+                    if 0 <= i <= 7 and 0 <= j <= 7:
+                        if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
+                            if not self.still_in_check((x, y), (i, j), piece):
+                                self.legal_moves.append((i, j))
+
+            # -------------------------Queen
+
+            elif piece[1] == 'Q':  # Queen
+                directions = [(0, -1), (0, 1), (1, 0), (-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+                for dir in directions:
+                    move_x, move_y = dir
+                    i, j = move_x + x, move_y + y
+                    while 0 <= i <= 7 and 0 <= j <= 7:
+                        if self.board[i][j] == '  ' or piece[0] != self.board[i][j][0]:
+                            if not self.still_in_check((x, y), (i, j), piece):
+                                self.legal_moves.append((i, j))
+                            if self.board[i][j] != '  ':
+                                break
+                        else:
+                            break
+                        i, j = move_x + i, move_y + j
+
+            # -------------------------king
+
+            elif piece[1] == 'K':  # king
+                directions = [(1, 0), (0, 1), (1, 1), (1, -1), (-1, 1), (-1, -1), (-1, 0), (0, -1)]
+                for dir in directions:
+                    move_x, move_y = dir
+                    i, j = move_x + x, move_y + y
+                    if 0 <= i <= 7 and 0 <= j <= 7:
+                        if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
+                            if not self.still_in_check((x, y), (i, j), piece):
+                                self.legal_moves.append((i, j))
+
+            else:  # spiderman!
+                for i in range(0, 8):
+                    for j in range(0, 8):
+                        self.legal_moves.append((i, j))
+
+
+
+            #add the piece moves to total
+            if flag and len(self.legal_moves) != 0:
+                self.all_legal_moves.append((piece,self.legal_moves))
 
     def handle_mouse_click(self, pos):
         square_size = self.screen_size[0] // 8
@@ -205,10 +325,26 @@ class ChessGame:
             if (row, col) in self.legal_moves:
                 self.target_square = (row, col)
                 self.move_piece()
-                print(f'en-passant details: {self.avaiable_enpassant}')
                 if self.last_move['piece'][1] == 'P' and self.avaiable_enpassant[0] and (self.last_move['dest'] == (self.avaiable_enpassant[1]+1,self.avaiable_enpassant[2]) or self.last_move['dest'] == (self.avaiable_enpassant[1]-1,self.avaiable_enpassant[2])):
-                    print(f'delete the pawn in ({self.avaiable_enpassant[1]}, {self.avaiable_enpassant[2]})')
                     self.board[self.avaiable_enpassant[1]][self.avaiable_enpassant[2]] = '  '
+
+                #after each move, we will see if there is check,checkmate,stealmate:
+                #serach for all legal moves, if no legal moves,
+                # self.all_legal_moves = []
+                color_can_be_checked = 'W' if self.last_move['piece'][0] == 'B' else 'B'
+                if self.is_check(self.board, color_can_be_checked):
+                    print(f"other color check {color_can_be_checked}")
+                # for i in range(0,8):
+                #     for j in range(0,8):
+                #         if color_can_be_checked == self.board[i][j][0]:
+                #             self.generate_legal_moves(i, j, self.board[i][j], True)
+                # print(len(self.all_legal_moves))
+                # if len(self.all_legal_moves) == 0:
+                #     if self.is_check(self.board, color_can_be_checked):
+                #         self.is_checkmate = True
+                #     else:
+                #         self.is_stealmate = True
+
             else:
                 # Clicking on the same piece again cancels the selection
                 piece = self.board[row][col]
@@ -221,6 +357,7 @@ class ChessGame:
         self.legal_moves = []
         if self.selected_piece and piece[0] == self.color_to_move:
             self.generate_legal_moves(self.selected_piece[0], self.selected_piece[1], piece)
+
 
     def move_piece(self):
         if self.selected_piece and self.target_square:
@@ -242,6 +379,9 @@ class ChessGame:
 
             #switch which color able to move next time.
             self.color_to_move = 'B' if self.color_to_move == 'W' else 'W'
+
+            #check for checkmate
+
 
             self.selected_piece = None
             self.target_square = None
@@ -319,6 +459,9 @@ class ChessGame:
                         self.handle_mouse_click(pygame.mouse.get_pos())
 
             self.display_board()
+
+            # if self.is_checkmate:
+            #     self.checkmate()
 
             pygame.display.flip()
             self.clock.tick(60)
