@@ -22,6 +22,7 @@ class ChessGame:
         self.selected_piece = None
         self.legal_moves = []  # List to store legal moves for the selected piece
         # Run the Pygame loop
+        self.color_to_move = 'W'
         self.avaiable_enpassant = [False, -1, -1]
         self.last_move = {'piece': '  ', 'source': (-1, -1), 'dest': (-1, -1)}
         self.run()
@@ -74,6 +75,7 @@ class ChessGame:
             return False
         if self.last_move == {'piece': data[0], 'source': (data[1], y), 'dest': (data[2], y)}:
             self.avaiable_enpassant = [True, data[2], y]
+            print(f'need to delete {self.last_move['dest']}')
             return True
         self.avaiable_enpassant[0] = False
         return False
@@ -93,26 +95,33 @@ class ChessGame:
 
 
     def generate_legal_moves(self, x, y, piece):
-        if piece == 'WP': #white pawn
-            if not self.has_piece(x - 1, y):
-                self.legal_moves.append((x - 1, y))
-                if x == 6 and not self.has_piece(x - 2, y):
-                    self.legal_moves.append((x - 2, y))
-            if self.has_black_piece(x - 1, y - 1) or (self.en_passant(piece, x ,y - 1)):
-                self.legal_moves.append((x - 1, y - 1))
-            if self.has_black_piece(x - 1, y + 1) or (self.en_passant(piece, x ,y +1)):
-                self.legal_moves.append((x - 1, y + 1))
+        print(self.last_move)
+        if piece[1] == 'P': #pawn
+            direction = -1 if piece[0] == 'W' else 1
+            move_x = x + direction
+            if 0 <= move_x < 8 and self.board[move_x][y] == '  ':
+                self.legal_moves.append((move_x, y))
+                if ((piece[0] == 'W' and x == 6) or (piece[0] == 'B' and x == 1)) and self.board[move_x + direction][y] == '  ':
+                    self.legal_moves.append((move_x + direction, y))
+            for move_y in [-1,1]:
+                new_col = y + move_y
+                if 0 <= move_x < 8 and 0 <= new_col < 8:
+                    target_piece = self.board[move_x][new_col]
+                    if target_piece != '  ' and target_piece[0] != piece[0]:
+                        self.legal_moves.append((move_x, new_col))
+            self.avaiable_enpassant = [False, -1, -1]
+            #en_passant:
+            if self.last_move['piece'][0] != piece[0] and self.last_move['piece'][1] == 'P':
+                if abs(self.last_move['source'][0] - self.last_move['dest'][0]) == 2:
+                    if self.last_move['dest'][0] == x and abs(self.last_move['dest'][1] - y) == 1:
+                        self.avaiable_enpassant = [True, self.last_move['dest'][0], self.last_move['dest'][1]]
+                        if piece[0] == 'W':
+                            self.legal_moves.append((self.last_move['dest'][0] - 1, self.last_move['dest'][1]))
+                        else:
+                            self.legal_moves.append((self.last_move['dest'][0] + 1, self.last_move['dest'][1]))
 
 
-        elif piece == 'BP': # black pawn
-            if not self.has_piece(x + 1, y):
-                self.legal_moves.append((x + 1, y))
-                if x == 1 and not self.has_piece(x + 2, y):
-                    self.legal_moves.append((x + 2, y))
-            if self.has_white_piece(x + 1, y - 1) or (self.en_passant(piece, x, y - 1)):
-                self.legal_moves.append((x + 1, y - 1))
-            if self.has_white_piece(x + 1, y + 1) or (self.en_passant(piece, x,y+1)):
-                self.legal_moves.append((x + 1, y + 1))
+
 
         elif piece[1] == 'B': #bishop
             directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
@@ -196,10 +205,10 @@ class ChessGame:
             if (row, col) in self.legal_moves:
                 self.target_square = (row, col)
                 self.move_piece()
-
+                print(f'en-passant details: {self.avaiable_enpassant}')
                 if self.last_move['piece'][1] == 'P' and self.avaiable_enpassant[0] and (self.last_move['dest'] == (self.avaiable_enpassant[1]+1,self.avaiable_enpassant[2]) or self.last_move['dest'] == (self.avaiable_enpassant[1]-1,self.avaiable_enpassant[2])):
+                    print(f'delete the pawn in ({self.avaiable_enpassant[1]}, {self.avaiable_enpassant[2]})')
                     self.board[self.avaiable_enpassant[1]][self.avaiable_enpassant[2]] = '  '
-
             else:
                 # Clicking on the same piece again cancels the selection
                 piece = self.board[row][col]
@@ -210,7 +219,7 @@ class ChessGame:
     def calculate_legal_moves(self, piece):
         # Calculate legal moves for the selected piece
         self.legal_moves = []
-        if self.selected_piece:
+        if self.selected_piece and piece[0] == self.color_to_move:
             self.generate_legal_moves(self.selected_piece[0], self.selected_piece[1], piece)
 
     def move_piece(self):
@@ -230,6 +239,9 @@ class ChessGame:
             if (piece_to_move == 'WP' and self.target_square[0] == 0) or (piece_to_move == 'BP' and self.target_square[0] == 7):
                 self.promote_pawn(piece_to_move[0])
             # Reset selected_piece and target_square
+
+            #switch which color able to move next time.
+            self.color_to_move = 'B' if self.color_to_move == 'W' else 'W'
 
             self.selected_piece = None
             self.target_square = None
