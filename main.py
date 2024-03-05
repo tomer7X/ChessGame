@@ -27,6 +27,8 @@ class ChessGame:
         self.color_to_move = 'W'
         self.is_checkmate = False
         self.is_stalemate = False
+        self.white_casting_pieces = [True, True, True]
+        self.black_casting_pieces = [True, True, True]
         self.avaiable_enpassant = [False, -1, -1]
         self.last_move = {'piece': '  ', 'source': (-1, -1), 'dest': (-1, -1)}
         self.run()
@@ -89,6 +91,64 @@ class ChessGame:
             return self.board[row][col] == 'WP'
         return False
 
+    def is_square_threatened(self, square, color):
+        row, col = square
+        opponent_color = 'W' if color == 'B' else 'B'
+
+        # Check for threats from pawns
+        pawn_direction = 1 if color == 'W' else -1
+        pawn_moves = [(pawn_direction, -1), (pawn_direction, 1)]
+        for move in pawn_moves:
+            move_x, move_y = move
+            print(f"row = {row}, move_x = {move_x}")
+            x, y = int(row) + move_x, col + move_y
+            if 0 <= x < 8 and 0 <= y < 8 and self.board[x][y] == opponent_color + 'P':
+                return True
+
+        # Check for threats from knights
+        knight_moves = [
+            (-2, -1), (-2, 1),
+            (-1, -2), (-1, 2),
+            (1, -2), (1, 2),
+            (2, -1), (2, 1)
+        ]
+        for move in knight_moves:
+            move_x, move_y = move
+            x, y = row + move_x, col + move_y
+            if 0 <= x < 8 and 0 <= y < 8 and self.board[x][y] == opponent_color + 'N':
+                return True
+
+        # Check for threats from bishops, rooks, and queens
+        directions = [
+            (0, -1), (0, 1), (1, 0), (-1, 0),
+            (1, 1), (1, -1), (-1, 1), (-1, -1)
+        ]
+        for dir in directions:
+            move_x, move_y = dir
+            i, j = row + move_x, col + move_y
+            while 0 <= i < 8 and 0 <= j < 8:
+                if self.board[i][j][0] == opponent_color:
+                    if self.board[i][j][1] in ['B', 'R', 'Q']:
+                        return True
+                    else:
+                        break
+                elif self.board[i][j] != '  ':
+                    break
+                i, j = i + move_x, j + move_y
+
+        # Check for threats from the opponent's king
+        king_moves = [
+            (1, 0), (0, 1), (1, 1), (1, -1),
+            (-1, 1), (-1, -1), (-1, 0), (0, -1)
+        ]
+        for move in king_moves:
+            move_x, move_y = move
+            x, y = row + move_x, col + move_y
+            if 0 <= x < 8 and 0 <= y < 8 and self.board[x][y] == opponent_color + 'K':
+                return True
+
+        return False
+
     def has_white_pawn(self, row, col):
         if (0 <= row <= 7) and (0 <= col <= 7):
             return self.board[row][col] == 'WP'
@@ -119,6 +179,31 @@ class ChessGame:
         if self.is_check(board, piece[0]):
             return True
         return False
+
+    def avaiable_casting_moves(self, color):
+        legal_moves = []
+        if self.is_check(self.board, color):
+            return False
+        if self.white_casting_pieces[1] == True and color == 'W':
+            #left rock white
+            if self.white_casting_pieces[0] == True and self.board[7][1] == '  ' and self.board[7][2] == '  ' and self.board[7][3] == '  ' and not self.is_square_threatened((7, 2),'W') and not self.is_square_threatened((7, 3),'W'):
+                legal_moves.append((7, 2))
+            #right rock white
+            if self.white_casting_pieces[2] == True and self.board[7][5] == '  ' and self.board[7][6] == '  ' and not self.is_square_threatened((7, 5), 'W') and not self.is_square_threatened((7, 6), 'W'):
+                legal_moves.append((7, 6))
+        elif self.black_casting_pieces[1] == True and color == 'B':
+            # left rock black
+            if self.black_casting_pieces[0] == True and self.board[0][1] == '  ' and self.board[0][2] == '  ' and \
+                    self.board[0][3] == '  ' and not self.is_square_threatened((0, 2),
+                                                                               'B') and not self.is_square_threatened(
+                    self.board[0][3], 'B'):
+                legal_moves.append((0, 2))
+            # right rock white
+            if self.black_casting_pieces[2] == True and self.board[0][5] == '  ' and self.board[0][
+                6] == '  ' and not self.is_square_threatened((0, 5), 'B') and not self.is_square_threatened(
+                    (0, 6), 'B'):
+                legal_moves.append((0, 6))
+        return legal_moves
 
     def is_check(self, board, color):
         # Find the king's position
@@ -292,6 +377,9 @@ class ChessGame:
                         if self.board[i][j] == '  ' or self.board[i][j][0] != piece[0]:
                             if not self.still_in_check((x, y), (i, j), piece):
                                 self.legal_moves.append((i, j))
+                casting_moves = self.avaiable_casting_moves(piece[0])
+                for mv in casting_moves:
+                    self.legal_moves.append(mv)
 
             else:  # spiderman!
                 for i in range(0, 8):
@@ -367,6 +455,32 @@ class ChessGame:
             self.last_move['dest'] = self.target_square
             self.board[self.target_square[0]][self.target_square[1]] = piece_to_move
             self.board[self.selected_piece[0]][self.selected_piece[1]] = '  '
+
+
+            #check kings and rocks moves for casting
+            if self.last_move['piece'] == 'WK':
+                self.white_casting_pieces = [False, False, False]
+            elif self.last_move['piece'] == 'BK':
+                self.black_casting_pieces = [False, False, False]
+            elif self.last_move['piece'][1] == 'R':
+                if self.last_move['source'] == (0, 0):
+                    self.black_casting_pieces[0] = False
+                elif self.last_move['source'] == (0, 7):
+                    self.black_casting_pieces[2] = False
+                elif self.last_move['source'] == (7, 0):
+                    self.white_casting_pieces[0] = False
+                else:
+                    self.white_casting_pieces[2] = False
+
+
+            #move rock if casting has done
+            if self.last_move['piece'][1] == 'K' and abs(self.last_move['source'][1] - self.last_move['dest'][1]) == 2:
+                if self.last_move['dest'][1] == 6:
+                    self.board[self.last_move['dest'][0]][5] = self.board[self.last_move['dest'][0]][7]
+                    self.board[self.last_move['dest'][0]][7] = '  '
+                else:
+                    self.board[self.last_move['dest'][0]][3] = self.board[self.last_move['dest'][0]][0]
+                    self.board[self.last_move['dest'][0]][0] = '  '
 
 
 
