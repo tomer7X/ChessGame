@@ -100,7 +100,6 @@ class ChessGame:
         pawn_moves = [(pawn_direction, -1), (pawn_direction, 1)]
         for move in pawn_moves:
             move_x, move_y = move
-            print(f"row = {row}, move_x = {move_x}")
             x, y = int(row) + move_x, col + move_y
             if 0 <= x < 8 and 0 <= y < 8 and self.board[x][y] == opponent_color + 'P':
                 return True
@@ -183,7 +182,7 @@ class ChessGame:
     def avaiable_casting_moves(self, color):
         legal_moves = []
         if self.is_check(self.board, color):
-            return False
+            return []
         if self.white_casting_pieces[1] == True and color == 'W':
             #left rock white
             if self.white_casting_pieces[0] == True and self.board[7][1] == '  ' and self.board[7][2] == '  ' and self.board[7][3] == '  ' and not self.is_square_threatened((7, 2),'W') and not self.is_square_threatened((7, 3),'W'):
@@ -194,9 +193,7 @@ class ChessGame:
         elif self.black_casting_pieces[1] == True and color == 'B':
             # left rock black
             if self.black_casting_pieces[0] == True and self.board[0][1] == '  ' and self.board[0][2] == '  ' and \
-                    self.board[0][3] == '  ' and not self.is_square_threatened((0, 2),
-                                                                               'B') and not self.is_square_threatened(
-                    self.board[0][3], 'B'):
+                    self.board[0][3] == '  ' and not self.is_square_threatened((0, 2),'B') and not self.is_square_threatened((0, 3), 'B'):
                 legal_moves.append((0, 2))
             # right rock white
             if self.black_casting_pieces[2] == True and self.board[0][5] == '  ' and self.board[0][
@@ -252,7 +249,11 @@ class ChessGame:
             i, j = king_position[0] + move_x, king_position[1] + move_y
             while 0 <= i < 8 and 0 <= j < 8:
                 if board[i][j][0] == opponent_color:
-                    if board[i][j][1] in ['B', 'R', 'Q']:
+                    if board[i][j][1] == 'Q':
+                        return True
+                    elif board[i][j][1] == 'R' and (dir[0] == 0 or dir[1] == 0):
+                        return True
+                    elif board[i][j][1] == 'B' and abs(dir[0]) + abs(dir[1]) == 2:
                         return True
                     else:
                         break
@@ -424,7 +425,6 @@ class ChessGame:
                     for j in range(0, 8):
                         if color_can_be_checked == self.board[i][j][0]:
                             self.generate_legal_moves(i, j, self.board[i][j], True)
-                print(len(self.all_legal_moves))
                 if len(self.all_legal_moves) == 0:
                     if self.is_check(self.board, color_can_be_checked):
                         self.is_checkmate = True
