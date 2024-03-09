@@ -581,7 +581,7 @@ class ChessGame:
                         (j if self.play_as == 'W' else 7 - j) * square_size + square_size // 2,
                         (i if self.play_as == 'W' else 7 - i) * square_size + square_size // 2), square_size // 5)
                     else:
-                        x_center = (j if self.play_as == 'W' else 7 -gi j) * square_size + square_size // 2
+                        x_center = (j if self.play_as == 'W' else 7 - j) * square_size + square_size // 2
                         y_center = (i if self.play_as == 'W' else 7 - i) * square_size + square_size // 2
                         line_length = square_size // 2
 
