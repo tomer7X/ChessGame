@@ -7,6 +7,7 @@ from settings import SettingsScreen
 class MenuScreen:
     def __init__(self):
         # Initialize Pygame
+        self.settings_screen = None
         pygame.init()
 
         # Set up the display
@@ -21,7 +22,8 @@ class MenuScreen:
         # Load and set background
         self.background_image, self.background_rect = self.load_and_set_background("images/background_design.png", 0.5)
 
-        self.settings = ['W', 0]
+        self.settings = ['W', False]
+        self.first_time_settings = True
 
         self.run()
 
@@ -68,12 +70,14 @@ class MenuScreen:
     def handle_menu_selection(self):
         selected_item = self.menu_items[self.selected_option]
         if selected_item == "Play":
-            # Start the chess game
-            chess_game = ChessGame()
+            print(f"self.settings[0]: {self.settings[0]}, self.settings[1]: {self.settings[1]}")
+            chess_game = ChessGame(self.settings[0], self.settings[1])
             chess_game.run()
         elif selected_item == "Settings":
-            settings_screen = SettingsScreen(self.screen, self.background_image, self.background_rect)
-            self.settings = settings_screen.handle_settings()
+            self.settings_screen = SettingsScreen(self.screen, self.background_image, self.background_rect, self.settings[0], self.settings[1])
+            self.settings_screen.handle_settings()
+            self.settings = [self.settings_screen.selected_color, self.settings_screen.play_with_bot]
+            self.first_time_settings = False
         elif selected_item == "Exit":
             pygame.quit()
             sys.exit()

@@ -3,18 +3,17 @@ import sys
 
 
 class SettingsScreen:
-    def __init__(self, screen, background_image, background_rect):
+    def __init__(self, screen, background_image, background_rect, set_color, set_mod):
         self.screen = screen
         self.background_image = background_image
         self.background_rect = background_rect
-
-        self.selected_color = "W"  # Default color
-        self.play_with_bot = False  # Default option
+        self.selected_color = set_color  # Default color
+        self.play_with_bot = set_mod  # Default option
 
     def handle_settings(self):
         running = True
-        selected_setting = 0  # Index 0 represents Play as color, Index 1 represents Play mode
-        selected_color_index = 0  # Index 0 represents White
+        selected_setting = 0 if not self.play_with_bot else 1  # Index 0 represents Play as color, Index 1 represents Play mode
+        selected_color_index = 0 if self.selected_color == 'W' else 1  # Index 0 represents White
 
         while running:
             for event in pygame.event.get():
@@ -37,9 +36,8 @@ class SettingsScreen:
                         else:
                             self.play_with_bot = not self.play_with_bot
                     elif event.key == pygame.K_RETURN:
-                        if selected_setting == 0:
                             self.selected_color = "W" if selected_color_index == 0 else "B"
-                        else:
+                            print(self.play_with_bot)
                             running = False
 
             # Draw the settings menu

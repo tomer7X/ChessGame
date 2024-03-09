@@ -3,11 +3,15 @@ import sys
 import os
 import copy
 
+import menuScreen
+
 
 class ChessGame:
 
-    def __init__(self, color = 'W', mod = 'friend'):
+    def __init__(self, my_color, mod):
         # Initialize Pygame
+        self.play_with_bot = mod
+        self.play_as = my_color
         pygame.init()
 
         # Set up the display
@@ -19,7 +23,7 @@ class ChessGame:
         # Clock to control the frame rate
         self.clock = pygame.time.Clock()
         # Initialize the chess board
-        self.board = self.initialize_board()
+        self.board = self.initialize_board(self.play_as)
 
         # Variables to track selected piece and target square
         self.selected_piece = None
@@ -33,11 +37,16 @@ class ChessGame:
         self.black_casting_pieces = [True, True, True]
         self.avaiable_enpassant = [False, -1, -1]
         self.last_move = {'piece': '  ', 'source': (-1, -1), 'dest': (-1, -1)}
+
+        if self.play_with_bot:
+            print(f'im playing as {self.play_as} with a bot')
+        else:
+            print(f"im playing as {self.play_as} with a friend")
         self.run()
 
 
 
-    def initialize_board(self):
+    def initialize_board(self, playas):
         # Create an 8x8 chess board with pieces in their initial positions
         board = [
             ['BR', 'BN', 'BB', 'BQ', 'BK', 'BB', 'BN', 'BR'],
@@ -49,6 +58,7 @@ class ChessGame:
             ['WP', 'WP', 'WP', 'WP', 'WP', 'WP', 'WP', 'WP'],
             ['WR', 'WN', 'WB', 'WQ', 'WK', 'WB', 'WN', 'WR']
         ]
+
         return board
 
 
@@ -77,8 +87,7 @@ class ChessGame:
                     sys.exit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left mouse button
-                        pygame.quit()
-                        sys.exit()
+                        menuScreen.MenuScreen()
 
 
     def has_piece(self, row, col):
@@ -553,16 +562,34 @@ class ChessGame:
                 # Use dark gray for black squares
                 square_surface.fill((102, 51, 0) if (i + j) % 2 == 0 else (255, 255, 255))
 
-                # Highlight legal moves if a piece is selected
-                if self.selected_piece and (i, j) in self.legal_moves:
-                    pygame.draw.circle(square_surface, (169, 169, 169), (square_size // 2, square_size // 2), square_size // 5)
+                # Determine the piece and its image based on the player's perspective
+                if self.play_as == 'W':
+                    piece = self.board[i][j]
+                    self.screen.blit(square_surface, (j * square_size, i * square_size))
+                else:
+                    piece = self.board[7 - i][7 - j]
+                    self.screen.blit(square_surface, ((7 - j) * square_size, (7 - i) * square_size))
 
-                self.screen.blit(square_surface, (j * square_size, i * square_size))
-
-                piece = self.board[i][j]
                 if piece != '  ':
                     piece_image = images[piece]
                     self.screen.blit(piece_image, (j * square_size, i * square_size))
+
+                # Highlight legal moves if a piece is selected
+                if self.selected_piece and (i, j) in self.legal_moves:
+                    if not self.has_piece(i, j):
+                        pygame.draw.circle(self.screen, (169, 169, 169), (
+                        (j if self.play_as == 'W' else 7 - j) * square_size + square_size // 2,
+                        (i if self.play_as == 'W' else 7 - i) * square_size + square_size // 2), square_size // 5)
+                    else:
+                        x_center = (j if self.play_as == 'W' else 7 -gi j) * square_size + square_size // 2
+                        y_center = (i if self.play_as == 'W' else 7 - i) * square_size + square_size // 2
+                        line_length = square_size // 2
+
+                        pygame.draw.line(self.screen, (220, 5, 5), (x_center - line_length, y_center - line_length),
+                                         (x_center + line_length, y_center + line_length), 2)
+                        pygame.draw.line(self.screen, (220, 5, 5), (x_center - line_length, y_center + line_length),
+                                         (x_center + line_length, y_center - line_length), 2)
+
 
 
     def run(self):
